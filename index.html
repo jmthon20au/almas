@@ -75,6 +75,7 @@
         <div class="footer-note">
             <p>ملاحظة: تأكد من إدخال معلومات صحيحة لتتمكن من اللعب!</p>
             <p>ملاحظه؛ في حال انتهاء الوقت سوف لايتبقى لديك محاوله ثانيه. لذلك احرص جيدا على الوقت، لكل سؤال 12 ثواني✔️</p>
+        <p>لديك فرصيتن في حال اجبت خطأ ❌</p>
         </div>
         <footer class="footer">
             <p>© 2025 جميع الحقوق محفوظة | ادارة بوت الماس امير & احمد</p>
@@ -95,159 +96,241 @@
         <p id="result-message"></p>
         <button id="restart-button">تم الإرسال</button>
     </div>
+<script>
+    let allQuestions = [];
 
-    <script>
-        let allQuestions = [];
-
-        // استدعاء ملف JSON
-        fetch('questions.json')
-            .then(response => response.json())
-            .then(data => {
-                allQuestions = data; // تخزين الأسئلة في المتغير
-            })
-            .catch(error => {
-                console.error("حدث خطأ أثناء تحميل الأسئلة:", error);
-            });
-
-        // متغيرات اللعبة
-        let selectedQuestions = [];
-        let currentQuestionIndex = 0;
-        let score = 0;
-        const totalRounds = 20; // إجمالي الأسئلة التي سيتم عرضها
-
-        // عناصر DOM
-        const startScreen = document.getElementById("start-screen");
-        const gameScreen = document.getElementById("game-screen");
-        const resultScreen = document.getElementById("result-screen");
-        const questionTitle = document.getElementById("question-title");
-        const choicesContainer = document.getElementById("choices-container");
-        const removeChoiceButton = document.getElementById("remove-choice");
-        const nextQuestionButton = document.getElementById("next-question");
-        const roundInfo = document.getElementById("round-info");
-        const resultMessage = document.getElementById("result-message");
-        const restartButton = document.getElementById("restart-button");
-        const timerDisplay = document.getElementById("timer");
-
-        const userForm = document.getElementById("user-form");
-        let userName = "";
-        let userId = "";
-
-        // دالة لاختيار 20 سؤالًا عشوائيًا من الأسئلة الأصلية
-        function getRandomQuestions() {
-            const shuffledQuestions = [...allQuestions]; // نسخ الأسئلة الأصلية
-            for (let i = shuffledQuestions.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [shuffledQuestions[i], shuffledQuestions[j]] = [shuffledQuestions[j], shuffledQuestions[i]]; // تبادل الأماكن
-            }
-            selectedQuestions = shuffledQuestions.slice(0, totalRounds); // أخذ أول 20 سؤال
-        }
-
-        // بدء اللعبة
-        userForm.addEventListener("submit", (e) => {
-            e.preventDefault();
-            userName = document.getElementById("username").value;
-            userId = document.getElementById("user-id").value;
-            startScreen.classList.add("hidden");
-            gameScreen.classList.remove("hidden");
-            getRandomQuestions(); // اختر الأسئلة العشوائية
-            startGame();
+    // استدعاء ملف JSON
+    fetch('questions.json')
+        .then(response => response.json())
+        .then(data => {
+            allQuestions = data; // تخزين الأسئلة في المتغير
+        })
+        .catch(error => {
+            console.error("حدث خطأ أثناء تحميل الأسئلة:", error);
         });
 
-        function startGame() {
-            currentQuestionIndex = 0;
-            score = 0;
-            showQuestion();
-        }
+    // متغيرات اللعبة
+    let selectedQuestions = [];
+    let currentQuestionIndex = 0;
+    let score = 0;
+    const totalRounds = 20; // إجمالي الأسئلة التي سيتم عرضها
+    let chancesLeft = 2; // عدد الفرص المتبقية
 
-        function showQuestion() {
-            const question = selectedQuestions[currentQuestionIndex];
-            questionTitle.textContent = question.question;
-            choicesContainer.innerHTML = "";
-            question.choices.forEach((choice) => {
-                const button = document.createElement("button");
-                button.textContent = choice;
-                button.addEventListener("click", () => selectAnswer(choice));
-                choicesContainer.appendChild(button);
-            });
+    // عناصر DOM
+    const startScreen = document.getElementById("start-screen");
+    const gameScreen = document.getElementById("game-screen");
+    const resultScreen = document.getElementById("result-screen");
+    const questionTitle = document.getElementById("question-title");
+    const choicesContainer = document.getElementById("choices-container");
+    const removeChoiceButton = document.getElementById("remove-choice");
+    const nextQuestionButton = document.getElementById("next-question");
+    const roundInfo = document.getElementById("round-info");
+    const resultMessage = document.getElementById("result-message");
+    const restartButton = document.getElementById("restart-button");
+    const timerDisplay = document.getElementById("timer");
 
-            // عرض الترقيم
-            roundInfo.textContent = `السؤال ${currentQuestionIndex + 1} من ${totalRounds} | النقاط: ${score}`;
-            removeChoiceButton.classList.add("hidden");
-            nextQuestionButton.classList.add("hidden");
-            startTimer();
-        }
+    const userForm = document.getElementById("user-form");
+    let userName = "";
+    let userId = "";
 
-        function startTimer() {
-            let timeRemaining = 12;
-            timerDisplay.textContent = timeRemaining;
-            countdownTimer = setInterval(() => {
-                timeRemaining--;
-                timerDisplay.textContent = timeRemaining;
-                if (timeRemaining <= 0) {
-                    clearInterval(countdownTimer);
-                    alert("انتهى الوقت! ستعود إلى صفحة المعلومات.");
-                    startScreen.classList.remove("hidden");
-                    gameScreen.classList.add("hidden");
-                }
-            }, 1000);
-        }
+    // التحقق من الحظر
+    checkBan();
 
-        function selectAnswer(choice) {
-            clearInterval(countdownTimer); // إيقاف العداد عند الإجابة
-            const question = selectedQuestions[currentQuestionIndex];
-            if (choice === question.answer) {
-                score += 250; // إضافة 25 نقطة لكل إجابة صحيحة
+    function checkBan() {
+        const banEndTime = localStorage.getItem("banEndTime");
+        if (banEndTime) {
+            const remainingTime = new Date(banEndTime) - new Date();
+            if (remainingTime > 0) {
+                displayBanCountdown(remainingTime);
             } else {
-                alert("إجابة خاطئة! ستعود إلى صفحة المعلومات.");
-                startScreen.classList.remove("hidden");
-                gameScreen.classList.add("hidden");
-                return; // العودة إلى صفحة المعلومات عند الإجابة الخاطئة
+                localStorage.removeItem("banEndTime"); // إزالة الحظر إذا انتهى
             }
-            nextQuestionButton.classList.remove("hidden");
+        }
+    }
+
+    function displayBanCountdown(remainingTime) {
+        const countdownDiv = document.createElement("div");
+        countdownDiv.id = "ban-countdown";
+        countdownDiv.style.position = "fixed";
+        countdownDiv.style.top = "50%";
+        countdownDiv.style.left = "50%";
+        countdownDiv.style.transform = "translate(-50%, -50%)";
+        countdownDiv.style.backgroundColor = "#f8d7da";
+        countdownDiv.style.color = "#721c24";
+        countdownDiv.style.padding = "2px";
+        countdownDiv.style.border = "5px solid #f5c6cb";
+        countdownDiv.style.borderRadius = "20px";
+        countdownDiv.style.textAlign = "center";
+        countdownDiv.style.fontSize = "20px";
+
+        document.body.innerHTML = ""; // تفريغ الموقع بالكامل
+        document.body.appendChild(countdownDiv);
+
+        const interval = setInterval(() => {
+            const hours = Math.floor(remainingTime / (1000 * 60 * 60));
+            const minutes = Math.floor((remainingTime % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((remainingTime % (1000 * 60)) / 1000);
+
+            countdownDiv.textContent = `عذراً، لا يمكنك الدخول الآن. الرجاء المحاولة بعد: ${hours} ساعة ${minutes} دقيقة ${seconds} ثانية. لا تحاول الدخول من متصفح ثاني⚠️`;
+
+            remainingTime -= 1000;
+            if (remainingTime <= 0) {
+                clearInterval(interval);
+                localStorage.removeItem("banEndTime"); // إزالة الحظر عند انتهاء الوقت
+                location.reload(); // إعادة تحميل الموقع
+            }
+        }, 1000);
+    }
+
+    // دالة لاختيار 20 سؤالًا عشوائيًا من الأسئلة الأصلية
+    function getRandomQuestions() {
+        const shuffledQuestions = [...allQuestions]; // نسخ الأسئلة الأصلية
+        for (let i = shuffledQuestions.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [shuffledQuestions[i], shuffledQuestions[j]] = [shuffledQuestions[j], shuffledQuestions[i]]; // تبادل الأماكن
+        }
+        selectedQuestions = shuffledQuestions.slice(0, totalRounds); // أخذ أول 20 سؤال
+    }
+
+    // بدء اللعبة
+    userForm.addEventListener("submit", (e) => {
+        e.preventDefault();
+
+        // التحقق من صحة اليوزر والآيدي
+        userName = document.getElementById("username").value.trim();
+        userId = document.getElementById("user-id").value.trim();
+
+        const usernameRegex = /^@[\w]{3,}$/; // يبدأ بـ @ ويحتوي على 3 أحرف أو أكثر
+        const userIdRegex = /^\d{9,10}$/; // يتكون من 9 أو 10 أرقام فقط
+
+        if (!usernameRegex.test(userName)) {
+            alert("تأكد من أن اليوزر يبدأ بـ @ ويتبعه 3 أحرف أو أكثر!");
+            return;
         }
 
-        nextQuestionButton.addEventListener("click", () => {
+        if (!userIdRegex.test(userId)) {
+            alert("الآيدي يجب أن يتكون من 9 أو 10 أرقام فقط!");
+            return;
+        }
+
+        startScreen.classList.add("hidden");
+        gameScreen.classList.remove("hidden");
+        getRandomQuestions(); // اختر الأسئلة العشوائية
+        startGame();
+    });
+
+    function startGame() {
+        currentQuestionIndex = 0;
+        score = 0;
+        chancesLeft = 2; // إعادة تعيين الفرص عند بدء اللعبة
+        showQuestion();
+    }
+
+    function showQuestion() {
+        const question = selectedQuestions[currentQuestionIndex];
+        questionTitle.textContent = question.question;
+        choicesContainer.innerHTML = "";
+        question.choices.forEach((choice) => {
+            const button = document.createElement("button");
+            button.textContent = choice;
+            button.addEventListener("click", () => selectAnswer(choice));
+            choicesContainer.appendChild(button);
+        });
+
+        // عرض الترقيم
+        roundInfo.textContent = `السؤال ${currentQuestionIndex + 1} من ${totalRounds} | النقاط: ${score} | الفرص المتبقية: ${chancesLeft}`;
+        removeChoiceButton.classList.add("hidden");
+        nextQuestionButton.classList.add("hidden");
+        startTimer();
+    }
+
+    function startTimer() {
+        let timeRemaining = 12;
+        timerDisplay.textContent = timeRemaining;
+        countdownTimer = setInterval(() => {
+            timeRemaining--;
+            timerDisplay.textContent = timeRemaining;
+            if (timeRemaining <= 0) {
+                clearInterval(countdownTimer);
+                handleWrongAnswer();
+            }
+        }, 1000);
+    }
+
+    function selectAnswer(choice) {
+        clearInterval(countdownTimer); // إيقاف العداد عند الإجابة
+        const question = selectedQuestions[currentQuestionIndex];
+        if (choice === question.answer) {
+            score += 250; // إضافة النقاط للإجابة الصحيحة
+            nextQuestionButton.classList.remove("hidden");
+        } else {
+            handleWrongAnswer(); // استدعاء الدالة عند الإجابة الخاطئة
+        }
+    }
+
+    function handleWrongAnswer() {
+        chancesLeft--; // تقليل عدد الفرص المتبقية
+        if (chancesLeft > 0) {
+            alert(`إجابة خاطئة! لديك ${chancesLeft} فرصة/فرص متبقية. سيتم عرض سؤال جديد.`);
             currentQuestionIndex++;
             if (currentQuestionIndex < selectedQuestions.length) {
-                showQuestion();
+                showQuestion(); // عرض السؤال الجديد
             } else {
-                endGame();
+                endGame(); // إنهاء اللعبة إذا انتهت الأسئلة
             }
-        });
-
-        function endGame() {
-            showResult();
+        } else {
+            alert("انتهت فرصك! وخسرت جولة هذا اليوم ، عد غداً وكن من الرابحين ⭐");
+            banUser(); // استدعاء الحظر
         }
+    }
 
-        function showResult() {
-            gameScreen.classList.add("hidden");
-            resultScreen.classList.remove("hidden");
-            resultMessage.textContent = `فائز جديد! اليوزر: ${userName} | الآيدي: ${userId} | النقاط: ${score}`;
-            sendToTelegram();
+    function banUser() {
+        const banEndTime = new Date(new Date().getTime() + 24 * 60 * 60 * 1000); // إضافة 24 ساعة
+        localStorage.setItem("banEndTime", banEndTime.toISOString());
+        location.reload(); // إعادة تحميل الموقع لتفعيل الحظر
+    }
+
+    nextQuestionButton.addEventListener("click", () => {
+        currentQuestionIndex++;
+        if (currentQuestionIndex < selectedQuestions.length) {
+            showQuestion();
+        } else {
+            endGame();
         }
+    });
 
-        function sendToTelegram() {
-            const botToken = "7563518916:AAHCyy7aL5dyEqPLdoVU8duEkhQfulxbIyI";
-            const chatId = "-1002448207541";
-            const message = `
+    function endGame() {
+        showResult();
+    }
+
+    function showResult() {
+        gameScreen.classList.add("hidden");
+        resultScreen.classList.remove("hidden");
+        resultMessage.textContent = `فائز جديد! اليوزر: ${userName} | الآيدي: ${userId} | النقاط: ${score}`;
+        sendToTelegram();
+    }
+
+    function sendToTelegram() {
+        const botToken = "7563518916:AAHCyy7aL5dyEqPLdoVU8duEkhQfulxbIyI";
+        const chatId = "-1002448207541";
+        const message = `
 مرحبا امير اجاك فائز جديد ❤
 ✨ اليوزر: ${userName} 
 ⭐ الآيدي: ${userId}
 ✨ عدد النقاط: ${score}
 ✔️ التاريخ: ${new Date().toLocaleString()}
-     
-            `;
-            fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ chat_id: chatId, text: message }),
-            });
-        }
-
-        restartButton.addEventListener("click", () => {
-            resultScreen.classList.add("hidden");
-            startScreen.classList.remove("hidden");
+        `;
+        fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ chat_id: chatId, text: message }),
         });
-    </script>
+    }
+
+    restartButton.addEventListener("click", () => {
+        resultScreen.classList.add("hidden");
+        startScreen.classList.remove("hidden");
+    });
+</script>
 </body>
-</html>
+    </html>
