@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>من سيربح الالماس</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-image: url('a.jpg'); /* ضع اسم أو رابط الصورة هنا */
+            background-size: cover; /* لتغطية الشاشة بالكامل */
+            background-repeat: no-repeat; /* منع التكرار */
+            background-position: center; /* توسيط الصورة */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh; /* اجعل الخلفية تغطي الشاشة */
+            margin: 0; /* إزالة الهوامش الافتراضية */
+            transition: none; /* إلغاء أي تأثير تدريجي */
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: 100;
+            margin: 50px auto;
+            padding: 20px;
+            max-width: 600px;
+            background: rgba(0, 0, 0, 0);
+            border-radius: 16px;
+            box-shadow: 0 0px 0px rgba(0, 0, 0, 0);
+            text-align: 10px;
+        }
+        .hidden {
+            display: none;
+        }
+        button {
+            padding: 10px 100px;
+            margin: 10px;
+            border: none;
+            background-color: #007BFF;
+            color: #ffffff;
+            border-radius: 50px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .timer {
+            font-size: 25px;
+            color: red;
+        }
+        .footer-note {
+            margin-top: 20px;
+            font-size: 18px;
+            color: #512bff;
+            text-align: center;
+            background-color: none;
+            padding: 12px;
+            border-radius: 80px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container" id="start-screen">
+        <h2>مرحبا بك في لعبة من سيربح الالماس💎</h2>
+        <form id="user-form">
+            <label>يوزرك تلجرام :</label><br>
+            <input type="text" id="username" required><br><br>
+            <label>الآيدي (تلجرام) :</label><br>
+            <input type="number" id="user-id" required><br><br>
+            <button type="submit">ابدأ</button>
+        </form>
+        <div class="footer-note">
+            <p>ملاحظة: تأكد من إدخال معلومات صحيحة لتتمكن من اللعب!</p>
+            <p>ملاحظه؛ في حال انتهاء الوقت سوف لايتبقى لديك محاوله ثانيه. لذلك احرص جيدا على الوقت، لكل سؤال 8 ثواني✔️</p>
+        </div>
+        <footer class="footer">
+            <p>© 2025 جميع الحقوق محفوظة | ادارة بوت الماس امير & احمد</p>
+        </footer>
+    </div>
+
+    <div class="container hidden" id="game-screen">
+        <h2 id="question-title"></h2>
+        <div id="choices-container"></div>
+        <button id="remove-choice" class="hidden">حذف إجابة</button>
+        <button id="next-question" class="hidden">السؤال التالي</button>
+        <p id="round-info"></p>
+        <p class="timer" id="timer">10</p>
+    </div>
+
+    <div class="container hidden" id="result-screen">
+        <h2>تهانينا!</h2>
+        <p id="result-message"></p>
+        <button id="restart-button">تم الإرسال</button>
+    </div>
+
+    <script>
+        let allQuestions = [];
+
+        // استدعاء ملف JSON
+        fetch('questions.json')
+            .then(response => response.json())
+            .then(data => {
+                allQuestions = data; // تخزين الأسئلة في المتغير
+            })
+            .catch(error => {
+                console.error("حدث خطأ أثناء تحميل الأسئلة:", error);
+            });
+
+        // متغيرات اللعبة
+        let selectedQuestions = [];
+        let currentQuestionIndex = 0;
+        let score = 0;
+        const totalRounds = 20; // إجمالي الأسئلة التي سيتم عرضها
+
+        // عناصر DOM
+        const startScreen = document.getElementById("start-screen");
+        const gameScreen = document.getElementById("game-screen");
+        const resultScreen = document.getElementById("result-screen");
+        const questionTitle = document.getElementById("question-title");
+        const choicesContainer = document.getElementById("choices-container");
+        const removeChoiceButton = document.getElementById("remove-choice");
+        const nextQuestionButton = document.getElementById("next-question");
+        const roundInfo = document.getElementById("round-info");
+        const resultMessage = document.getElementById("result-message");
+        const restartButton = document.getElementById("restart-button");
+        const timerDisplay = document.getElementById("timer");
+
+        const userForm = document.getElementById("user-form");
+        let userName = "";
+        let userId = "";
+
+        // دالة لاختيار 20 سؤالًا عشوائيًا من الأسئلة الأصلية
+        function getRandomQuestions() {
+            const shuffledQuestions = [...allQuestions]; // نسخ الأسئلة الأصلية
+            for (let i = shuffledQuestions.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [shuffledQuestions[i], shuffledQuestions[j]] = [shuffledQuestions[j], shuffledQuestions[i]]; // تبادل الأماكن
+            }
+            selectedQuestions = shuffledQuestions.slice(0, totalRounds); // أخذ أول 20 سؤال
+        }
+
+        // بدء اللعبة
+        userForm.addEventListener("submit", (e) => {
+            e.preventDefault();
+            userName = document.getElementById("username").value;
+            userId = document.getElementById("user-id").value;
+            startScreen.classList.add("hidden");
+            gameScreen.classList.remove("hidden");
+            getRandomQuestions(); // اختر الأسئلة العشوائية
+            startGame();
+        });
+
+        function startGame() {
+            currentQuestionIndex = 0;
+            score = 0;
+            showQuestion();
+        }
+
+        function showQuestion() {
+            const question = selectedQuestions[currentQuestionIndex];
+            questionTitle.textContent = question.question;
+            choicesContainer.innerHTML = "";
+            question.choices.forEach((choice) => {
+                const button = document.createElement("button");
+                button.textContent = choice;
+                button.addEventListener("click", () => selectAnswer(choice));
+                choicesContainer.appendChild(button);
+            });
+
+            // عرض الترقيم
+            roundInfo.textContent = `السؤال ${currentQuestionIndex + 1} من ${totalRounds} | النقاط: ${score}`;
+            removeChoiceButton.classList.add("hidden");
+            nextQuestionButton.classList.add("hidden");
+            startTimer();
+        }
+
+        function startTimer() {
+            let timeRemaining = 8;
+            timerDisplay.textContent = timeRemaining;
+            countdownTimer = setInterval(() => {
+                timeRemaining--;
+                timerDisplay.textContent = timeRemaining;
+                if (timeRemaining <= 0) {
+                    clearInterval(countdownTimer);
+                    alert("انتهى الوقت! ستعود إلى صفحة المعلومات.");
+                    startScreen.classList.remove("hidden");
+                    gameScreen.classList.add("hidden");
+                }
+            }, 1000);
+        }
+
+        function selectAnswer(choice) {
+            clearInterval(countdownTimer); // إيقاف العداد عند الإجابة
+            const question = selectedQuestions[currentQuestionIndex];
+            if (choice === question.answer) {
+                score += 250; // إضافة 25 نقطة لكل إجابة صحيحة
+            } else {
+                alert("إجابة خاطئة! ستعود إلى صفحة المعلومات.");
+                startScreen.classList.remove("hidden");
+                gameScreen.classList.add("hidden");
+                return; // العودة إلى صفحة المعلومات عند الإجابة الخاطئة
+            }
+            nextQuestionButton.classList.remove("hidden");
+        }
+
+        nextQuestionButton.addEventListener("click", () => {
+            currentQuestionIndex++;
+            if (currentQuestionIndex < selectedQuestions.length) {
+                showQuestion();
+            } else {
+                endGame();
+            }
+        });
+
+        function endGame() {
+            showResult();
+        }
+
+        function showResult() {
+            gameScreen.classList.add("hidden");
+            resultScreen.classList.remove("hidden");
+            resultMessage.textContent = `فائز جديد! اليوزر: ${userName} | الآيدي: ${userId} | النقاط: ${score}`;
+            sendToTelegram();
+        }
+
+        function sendToTelegram() {
+            const botToken = "6418845303:AAFNx_TT6oRMUv8lLhMpeqAmTO_L1516ymY";
+            const chatId = "6454550864";
+            const message = `
+مرحبا امير اجاك فائز جديد ❤
+✨ اليوزر: ${userName} 
+⭐ الآيدي: ${userId}
+✨ عدد النقاط: ${score}
+✔️ التاريخ: ${new Date().toLocaleString()}
+     
+            `;
+            fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ chat_id: chatId, text: message }),
+            });
+        }
+
+        restartButton.addEventListener("click", () => {
+            resultScreen.classList.add("hidden");
+            startScreen.classList.remove("hidden");
+        });
+    </script>
+</body>
+</html>
