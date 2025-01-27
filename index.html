@@ -201,7 +201,7 @@
         userId = document.getElementById("user-id").value.trim();
 
         const usernameRegex = /^@[\w]{3,}$/; // يبدأ بـ @ ويحتوي على 3 أحرف أو أكثر
-        const userIdRegex = /^\d{9,10}$/; // يتكون من 9 أو 10 أرقام فقط
+        const userIdRegex = /^\d{8,10}$/; // يتكون من 9 أو 10 أرقام فقط
 
         if (!usernameRegex.test(userName)) {
             alert("تأكد من أن اليوزر يبدأ بـ @ ويتبعه 3 أحرف أو أكثر!");
